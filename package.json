@@ -1,15 +1,8 @@
 {
-  "name": "funding-payout-service-ready",
+  "name": "funding-payout-service-production",
   "version": "1.0.0",
-  "description": "Core Banking Ledger Fiat EMI and Real Multi-Chain On-Chain Transaction Engine",
+  "description": "Core Banking Ledger",
   "main": "src/app.js",
-  "scripts": {
-    "start": "node src/app.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "ethers": "^5.7.2"
-  },
-  "author": "vassefabrizio-delcoding",
-  "license": "MIT"
+  "scripts": { "start": "node src/app.js" },
+  "dependencies": { "express": "^4.18.2", "ethers": "^5.7.2" }
 }
