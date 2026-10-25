@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cruscotto Operativo di Produzione</title>
+    <style>
+        body { font-family: sans-serif; background: #0f172a; color: #e2e8f0; margin: 20px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { color: #38bdf8; margin-top: 0; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        label { display: block; margin-bottom: 5px; color: #94a3b8; }
+        input, select { width: 100%; padding: 10px; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; box-sizing: border-box; margin-bottom: 15px; }
+        button { background: #10b981; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; }
+        button:hover { background: #059669; }
+        .balance-item { font-size: 1.2rem; font-weight: bold; margin-bottom: 8px; }
+        .log-box { background: #020617; font-family: monospace; padding: 15px; border-radius: 6px; max-height: 200px; overflow-y: auto; color: #4ade80; border: 1px solid #1e293b; }
+    </style>
+</head>
+<body>
+    <h1>Cruscotto di Produzione Reale</h1>
+    <div class="grid">
+        <div class="card">
+            <h2>Saldi Attivi Core Ledger</h2>
+            <div id="balancesFiat">Caricamento saldi Fiat...</div>
+            <hr style="border-color: #334155; margin: 15px 0;">
+            <h2>Saldi On-Chain Real-Time</h2>
+            <div id="balancesCrypto">Caricamento saldi Blockchain...</div>
+            <button onclick="fetchBalances()" style="background: #3b82f6; margin-top: 15px;">Aggiorna Saldi</button>
+        </div>
+        <div class="card">
+            <h2>Minting e Accredito Fiat (EMI)</h2>
+            <label>Valuta</label>
+            <select id="fiatCurrency"><option value="EUR">Euro (EUR)</option><option value="USD">Dollaro (USD)</option></select>
+            <label>Importo</label>
+            <input type="number" id="fiatAmount" placeholder="1000.00">
+            <label>Causale / Riferimento Audit</label>
+            <input type="text" id="fiatReference" placeholder="Ricarica Fondo Istituzionale">
+            <button onclick="executeMint()">Esegui Accredito nel Ledger</button>
+        </div>
+    </div>
+    <div class="card">
+        <h2>Disposizione Payout On-Chain Multi-Chain</h2>
+        <div class="grid">
+            <div>
+                <label>Rete Blockchain (RPC di Produzione)</label>
+                <select id="cryptoNetwork">
+                    <option value="polygon">Polygon Mainnet</option>
+                    <option value="ethereum">Ethereum Mainnet</option>
+                    <option value="base">Base Mainnet</option>
+                    <option value="arbitrum">Arbitrum One</option>
+                </select>
+                <label>Token / Asset da Trasferire</label>
+                <select id="cryptoToken"><option value="USDT">USDT (Stablecoin)</option><option value="USDC">USDC (Stablecoin)</option><option value="EURC">EURC (Euro Digital)</option></select>
+            </div>
+            <div>
+                <label>Indirizzo Destinatario Reale (Wallet Address)</label>
+                <input type="text" id="cryptoAddress" placeholder="0x...">
+                <label>Importo del Payout</label>
+                <input type="number" id="cryptoAmount" placeholder="0.00">
+            </div>
+        </div>
+        <button onclick="executePayout()" style="background: #ef4444;">Firma ed Esegui Payout Reale On-Chain</button>
+    </div>
+    <div class="card">
+        <h2>Console Log di Audit in Tempo Reale</h2>
+        <div id="consoleLog" class="log-box">Sistema pronto. In attesa di operazioni...</div>
+    </div>
+    <script>
+        async function fetchBalances() {
+            try {
+                const res = await fetch('/api/balance');
+                const data = await res.json();
+                document.getElementById('balancesFiat').innerHTML = `
+                    <div class="balance-item">Conto EUR: € ${parseFloat(data.fiat.EUR).toFixed(2)}</div>
+                    <div class="balance-item">Conto USD: $ ${parseFloat(data.fiat.USD).toFixed(2)}</div>
+                `;
+                document.getElementById('balancesCrypto').innerHTML = `
+                    <div class="balance-item">Ethereum Nativo: ${data.crypto.ETH_Ethereum} ETH</div>
+                    <div class="balance-item">Polygon Tether: ${data.crypto.USDT_Polygon} USDT</div>
+                    <div class="balance-item">Base Circle: ${data.crypto.USDC_Base} USDC</div>
+                `;
+            } catch (e) {
+                logConsole(`Errore aggiornamento saldi: ${e.message}`);
+            }
+        }
+        async function executeMint() {
+            const amount = document.getElementById('fiatAmount').value;
+            const currency = document.getElementById('fiatCurrency').value;
+            const reference = document.getElementById('fiatReference').value;
+            try {
+                const res = await fetch('/api/fiat/mint', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ amount, currency, reference })
+                });
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+                logConsole(`[SUCCESS] Minting completato. ID Audit: ${data.auditId}. Checksum: ${data.checksum.substring(0, 16)}...`);
+                fetchBalances();
+            } catch(e) {
+                logConsole(`[ERROR] Fallimento Minting: ${e.message}`);
+            }
+        }
+        async function executePayout() {
+            const network = document.getElementById('cryptoNetwork').value;
+            const tokenSymbol = document.getElementById('cryptoToken').value;
+            const toAddress = document.getElementById('cryptoAddress').value;
+            const amount = document.getElementById('cryptoAmount').value;
+            logConsole(`[PENDING] Generazione chiavi e invio al nodo RPC... Attendere conferma del blocco.`);
+            try {
+                const res = await fetch('/api/payout/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ network, tokenSymbol, toAddress, amount })
+                });
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+                logConsole(`[SUCCESS] Payout Confermato. Hash: ${data.txHash} (Gas speso: ${data.gasUsed})`);
+                fetchBalances();
+            } catch (e) {
+                logConsole(`[CRITICAL ERROR] Transazione fallita o respinta: ${e.message}`);
+            }
+        }
+        function logConsole(msg) {
+            const box = document.getElementById('consoleLog');
+            box.innerHTML += `<br>[${new Date().toLocaleTimeString()}] ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
+        window.onload = fetchBalances;
+    </script>
+</body>
+</html>

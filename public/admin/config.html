@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amministrazione e Mitigazione Rischi</title>
+    <style>
+        body { font-family: sans-serif; background: #0f172a; color: #e2e8f0; margin: 20px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        h2 { color: #ef4444; margin-top: 0; }
+        input { width: 100%; padding: 10px; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; box-sizing: border-box; margin-bottom: 15px; }
+        button { background: #2563eb; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        button:hover { background: #1d4ed8; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; font-size: 0.9rem; }
+        th { background: #1e293b; color: #38bdf8; }
+    </style>
+</head>
+<body>
+    <h1>Pannello Controllo Rischi Istituzionale</h1>
+    <div class="card">
+        <h2>Soglie Antiriciclaggio e Limiti Operativi</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <label style="color: #94a3b8;">Tetto Massimo Singola Transazione (€)</label>
+                <input type="number" id="maxSingleTx">
+            </div>
+            <div>
+                <label style="color: #94a3b8;">Limite Giornaliero Cumulativo (€)</label>
+                <input type="number" id="dailyCumulative">
+            </div>
+        </div>
+        <button onclick="updateLimits()">Salva Limiti Operativi</button>
+    </div>
+    <div class="card">
+        <h2 style="color: #38bdf8;">Registri di Audit Contabile Immutabili (EMI Log)</h2>
+        <button onclick="fetchAuditLogs()" style="background: #4b5563;">Aggiorna Registro Immutabile</button>
+        <table id="auditTable">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Operazione</th>
+                    <th>Importo</th>
+                    <th>Valuta</th>
+                    <th>Riferimento Causale</th>
+                    <th>Hash Crittografico Checksum</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="6" style="text-align: center; color: #94a3b8;">Nessun record caricato. Clicca su aggiorna.</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <script>
+        async function fetchLimits() {
+            const res = await fetch('/api/admin/limits');
+            const data = await res.json();
+            document.getElementById('maxSingleTx').value = data.maxSingleTransaction;
+            document.getElementById('dailyCumulative').value = data.dailyCumulativeLimit;
+        }
+        async function updateLimits() {
+            const maxSingleTransaction = document.getElementById('maxSingleTx').value;
+            const dailyCumulativeLimit = document.getElementById('dailyCumulative').value;
+            const res = await fetch('/api/admin/limits/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ maxSingleTransaction, dailyCumulativeLimit })
+            });
+            const data = await res.json();
+            if (data.success) alert("Limiti aggiornati con successo.");
+        }
+        async function fetchAuditLogs() {
+            const res = await fetch('/api/admin/audit');
+            const data = await res.json();
+            const tbody = document.getElementById('auditTable').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nessuna transazione registrata nel Ledger.</td></tr>';
+                return;
+            }
+            data.forEach(log => {
+                const row = tbody.insertRow();
+                row.insertCell(0).innerText = log.timestamp;
+                row.insertCell(1).innerText = log.type;
+                row.insertCell(2).innerText = parseFloat(log.amount).toFixed(2);
+                row.insertCell(3).innerText = log.currency;
+                row.insertCell(4).innerText = log.reference;
+                row.insertCell(5).innerHTML = log.checksum ? `<span style="font-family: monospace; color: #f43f5e;">${log.checksum.substring(0,24)}...</span>` : 'N/A';
+            });
+        }
+        window.onload = function() {
+            fetchLimits();
+            fetchAuditLogs();
+        }
+    </script>
+</body>
+</html>
